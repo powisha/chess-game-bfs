@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CLionExternalBuildManager">
+    <target id="654234db-6a43-4251-9931-f836f696240c" name="chess_game" defaultType="MAKE">
+      <configuration id="18e6fdb7-43ca-4ba8-bb81-2b307091d897" name="chess_game">
+        <build type="MAKE">
+          <make targetName="make" />
+        </build>
+        <clean type="MAKE">
+          <make targetName="make clean" />
+        </clean>
+      </configuration>
+    </target>
+  </component>
+</project>

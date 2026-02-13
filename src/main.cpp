@@ -1,0 +1,208 @@
+#include "ConfigReader.hpp"
+#include <iostream>
+#include <string>
+#include "../include/GameManager.hpp"
+#include "ChessBoard.hpp"
+#include <nlohmann/json.hpp>
+#include "../include/MoveValidator.hpp"
+using json = nlohmann::json;
+
+
+
+// Helper function to display special abilities
+void displaySpecialAbilities(const SpecialAbilities &abilities) {
+  if (abilities.castling)
+    std::cout << "Castling ";
+  if (abilities.royal)
+    std::cout << "Royal ";
+  if (abilities.jump_over)
+    std::cout << "Jump-over ";
+  if (abilities.promotion)
+    std::cout << "Promotion ";
+  if (abilities.en_passant)
+    std::cout << "En-passant ";
+
+  // Display any custom abilities
+  for (const auto &[key, value] : abilities.custom_abilities) {
+    if (value) {
+      std::cout << key << " ";
+    }
+  }
+}
+
+// Helper function to display piece information
+void displayPieceInfo(const PieceConfig &piece) {
+  std::cout << "Type: " << piece.type << " (Count: " << piece.count << ")"
+            << std::endl;
+
+  // Show movement info
+  std::cout << "  Movement: ";
+  if (piece.movement.forward > 0)
+    std::cout << "Forward: " << piece.movement.forward << " ";
+  if (piece.movement.sideways > 0)
+    std::cout << "Sideways: " << piece.movement.sideways << " ";
+  if (piece.movement.diagonal > 0)
+    std::cout << "Diagonal: " << piece.movement.diagonal << " ";
+  if (piece.movement.l_shape)
+    std::cout << "L-shape: Yes ";
+  if (piece.movement.diagonal_capture > 0)
+    std::cout << "Diagonal Capture: " << piece.movement.diagonal_capture << " ";
+  if (piece.movement.first_move_forward > 0)
+    std::cout << "First Move Forward: " << piece.movement.first_move_forward
+              << " ";
+  std::cout << std::endl;
+
+  // Show special abilities
+  std::cout << "  Special Abilities: ";
+  displaySpecialAbilities(piece.special_abilities);
+  std::cout << std::endl;
+
+  // Display positions
+  if (piece.positions.count("white") > 0) {
+    std::cout << "  White positions: ";
+    for (const auto &pos : piece.positions.at("white")) {
+      std::cout << "(" << pos.x << "," << pos.y << ") ";
+    }
+    std::cout << std::endl;
+  }
+
+  if (piece.positions.count("black") > 0) {
+    std::cout << "  Black positions: ";
+    for (const auto &pos : piece.positions.at("black")) {
+      std::cout << "(" << pos.x << "," << pos.y << ") ";
+    }
+    std::cout << std::endl;
+  }
+}
+
+int main(int argc, char *argv[]) {
+  std::string configPath = "data/chess_pieces.json";
+
+  // If a command-line argument is provided, use it as the config path
+  if (argc > 1) {
+    configPath = argv[1];
+  }
+
+  ConfigReader configReader;
+
+  // Load the configuration
+  if (!configReader.loadFromFile(configPath)) {
+    std::cerr << "Failed to load configuration. Exiting." << std::endl;
+    return 1;
+  }
+
+  // Get the parsed configuration
+  const GameConfig &config = configReader.getConfig();
+
+  // Display some information from the config
+  std::cout << "==== Game Configuration ====" << std::endl;
+  std::cout << "Game: " << config.game_settings.name << std::endl;
+  std::cout << "Board size: " << config.game_settings.board_size << "x"
+            << config.game_settings.board_size << std::endl;
+  std::cout << "Turn limit: " << config.game_settings.turn_limit << std::endl;
+
+  // Display standard pieces information
+  std::cout << "\n==== Standard Pieces ====" << std::endl;
+  for (const auto &piece : config.pieces) {
+    displayPieceInfo(piece);
+  }
+
+  // Display custom pieces information if any
+  if (!config.custom_pieces.empty()) {
+    std::cout << "\n==== Custom Pieces ====" << std::endl;
+    for (const auto &piece : config.custom_pieces) {
+      displayPieceInfo(piece);
+    }
+  }
+
+  // Display portals information
+  std::cout << "\n==== Portals ====" << std::endl;
+  for (const auto &portal : config.portals) {
+    std::cout << "Portal ID: " << portal.id << std::endl;
+    std::cout << "  Entry: (" << portal.positions.entry.x << ","
+              << portal.positions.entry.y << ")" << std::endl;
+    std::cout << "  Exit: (" << portal.positions.exit.x << ","
+              << portal.positions.exit.y << ")" << std::endl;
+    std::cout << "  Preserve direction: "
+              << (portal.properties.preserve_direction ? "Yes" : "No")
+              << std::endl;
+    std::cout << "  Cooldown: " << portal.properties.cooldown << " turns"
+              << std::endl;
+
+    std::cout << "  Allowed colors: ";
+    for (const auto &color : portal.properties.allowed_colors) {
+      std::cout << color << " ";
+    }
+    std::cout << std::endl;
+
+
+  }
+
+  ChessBoard board;
+  vector<Portal*> Portals;
+
+  for (const auto &portal : config.portals) {
+
+    Portal*p = new Portal(portal.id,portal.positions.entry,portal.positions.exit,portal.properties.allowed_colors,portal.properties.cooldown,portal.properties.preserve_direction);
+    Portals.push_back(p);
+  }
+
+
+  for (const auto& piece: config.pieces){
+    for (const auto& pos : piece.positions.at("white"))
+    {
+      Piece p;
+      p.type=piece.type;
+      p.color="white";
+      p.firstx = pos.x;
+      p.firsty = pos.y;
+      if (piece.movement.forward>0) p.movement.forward=piece.movement.forward;
+      if (piece.movement.diagonal>0) p.movement.diagonal=piece.movement.diagonal;
+      if (piece.movement.diagonal_capture>0) p.movement.diagonal_capture=piece.movement.diagonal_capture;
+      if (piece.movement.sideways>0) p.movement.sideways=piece.movement.sideways;
+      if (piece.movement.first_move_forward>0) p.movement.first_move_forward=piece.movement.first_move_forward;
+      if (piece.movement.l_shape==true) p.movement.l_shape=piece.movement.l_shape;
+
+      p.special_abilities.castling=piece.special_abilities.castling;
+      p.special_abilities.jump_over=piece.special_abilities.jump_over;
+      p.special_abilities.promotion=piece.special_abilities.promotion;
+      p.special_abilities.en_passant=piece.special_abilities.en_passant;
+      p.special_abilities.royal=piece.special_abilities.royal;
+
+      board.addPiece(pos.x,pos.y,p);
+    }
+
+      for (const auto& pos : piece.positions.at("black"))
+      {
+        Piece p;
+        p.type=piece.type;
+        p.color="black";
+        p.firstx = pos.x;
+        p.firsty = pos.y;
+
+        if (piece.movement.forward>0) p.movement.forward=piece.movement.forward;
+        if (piece.movement.diagonal>0) p.movement.diagonal=piece.movement.diagonal;
+        if (piece.movement.diagonal_capture>0) p.movement.diagonal_capture=piece.movement.diagonal_capture;
+        if (piece.movement.sideways>0) p.movement.sideways=piece.movement.sideways;
+        if (piece.movement.first_move_forward) p.movement.first_move_forward=piece.movement.first_move_forward;
+        if (piece.movement.l_shape==true) p.movement.l_shape=piece.movement.l_shape;
+
+        p.special_abilities.castling=piece.special_abilities.castling;
+        p.special_abilities.jump_over=piece.special_abilities.jump_over;
+        p.special_abilities.promotion=piece.special_abilities.promotion;
+        p.special_abilities.en_passant=piece.special_abilities.en_passant;
+        p.special_abilities.royal=piece.special_abilities.royal;
+
+        board.addPiece(pos.x,pos.y,p);
+      }
+  }
+  MoveValidator validator(board);
+  int maxTurns = config.game_settings.turn_limit;
+  GameManager manager(board,validator,2*maxTurns,Portals);
+
+  manager.startGame();
+
+
+  return 0;
+
+}
